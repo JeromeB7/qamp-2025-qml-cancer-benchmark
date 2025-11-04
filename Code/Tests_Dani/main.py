@@ -91,9 +91,8 @@ def load_and_preprocess_data():
     print(f"First few rows:")
     print(data.head())
     sns.pairplot(data, hue="diagnosis", palette="tab10")
-    plt.savefig('Pairplot.png', dpi=300, bbox_inches='tight')
+    plt.savefig('../Output/Pairplot.png', dpi=300, bbox_inches='tight')
 
-    print('Leyendo gráfica de pairplot...')
     # Separate features and target
     # Target column: 'diagnosis' with values 'M' (Malignant) or 'B' (Benign)
     X = data.drop(columns=["diagnosis"])
