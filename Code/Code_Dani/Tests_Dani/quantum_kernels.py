@@ -16,10 +16,9 @@ Date: November 2025
 import numpy as np
 from qiskit import QuantumCircuit
 from qiskit.circuit import Parameter, ParameterVector
-from qiskit.circuit.library import ZZFeatureMap, PauliFeatureMap
+from qiskit.circuit.library import ZZFeatureMap
 from qiskit_algorithms.state_fidelities import ComputeUncompute
 from qiskit_machine_learning.kernels import FidelityQuantumKernel
-from qiskit_aer import AerSimulator
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 from typing import Tuple, Optional
@@ -27,17 +26,22 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-import numpy as np
-from qiskit import QuantumCircuit
-from qiskit.circuit.library import ZZFeatureMap
-# Nota: La importación de Parameter y ParameterVector no es estrictamente necesaria
-# dentro de esta clase si usas ZZFeatureMap de Qiskit, pero se incluye si lo necesitas.
-# from qiskit.circuit import Parameter, ParameterVector 
-from qiskit.circuit.library import ZZFeatureMap
-from qiskit.circuit import QuantumCircuit
-
 class FourierFeatureMap:
+    """
+    Fourier Feature Map using ZZFeatureMap from Qiskit
+    
+    This creates a quantum feature map based on Pauli-Z rotations and 
+    ZZ entangling gates. It's one of the standard quantum embeddings.
+    """
     def __init__(self, n_features: int, reps: int = 2, entanglement: str = 'linear'):
+        """
+        Initialize Fourier Feature Map
+        
+        Args:
+            n_features: Number of classical features (qubits)
+            reps: Number of repetitions (circuit depth)
+            entanglement: Type of entanglement ('linear', 'full', 'circular')
+        """
         self.n_features = n_features
         self.reps = reps
         self.entanglement = entanglement
@@ -45,21 +49,22 @@ class FourierFeatureMap:
         self._build_circuit()
 
     def _build_circuit(self):
-        # Construimos y DESCOMPONEMOS el circuito del feature map
+        """Build and decompose the feature map circuit"""
         fm = ZZFeatureMap(
             feature_dimension=self.n_features,
             reps=self.reps,
             entanglement=self.entanglement,
             insert_barriers=False
         )
-        # Decomponer varias veces para asegurarnos de que no queden instrucciones compuestas
+        # Decompose to ensure no composite instructions
         self.feature_map = fm.decompose().decompose()
 
     def get_circuit(self) -> QuantumCircuit:
-        # Devuelve un QuantumCircuit descompuesto
+        """Return the decomposed quantum circuit"""
         return self.feature_map
 
     def visualize_circuit(self):
+        """Print circuit structure"""
         print(f"\nFourier Feature Map Circuit ({self.n_features} qubits, {self.reps} reps):")
         print(self.feature_map)
 
@@ -204,7 +209,6 @@ class QuantumKernelSVM:
         # Initialize quantum backend (simulator)
         from qiskit_aer.primitives import SamplerV2
         self.backend = SamplerV2()
-
         
         # Build feature map
         if feature_map_type == 'fourier':

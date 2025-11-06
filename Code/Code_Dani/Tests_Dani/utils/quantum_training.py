@@ -1,46 +1,48 @@
 """
-Quantum kernel SVM training utilities
-
-Author: Quantum ML Implementation
-Date: November 2025
+Utility functions for training quantum kernel models
 """
 
-import os.path as osp
+import numpy as np
+from sklearn.metrics import accuracy_score, classification_report
 import matplotlib.pyplot as plt
-from sklearn.metrics import confusion_matrix, classification_report
+import os.path as osp
+
+# Import quantum kernel implementations
 import sys
-
-# Add path to custom modules
+import os.path as osp
+# Get the parent directory (Code_Dani/Tests_Dani)
 SCRIPT_DIR = osp.abspath(osp.dirname(__file__))
-sys.path.insert(0, osp.join(SCRIPT_DIR, "../../"))
+PARENT_DIR = osp.dirname(SCRIPT_DIR)  # Go up from utils/ to Tests_Dani/
+sys.path.insert(0, PARENT_DIR)
 
-import quantum_feature_map.moduqusvm as mdqsvm
-from quantum_feature_map.moduqusvm import svm_models
-from .visualization import plot_decision_boundary, plot_kernel_matrix
+from quantum_kernels import QuantumKernelSVM
+from utils.visualization import (
+    plot_decision_boundary,
+    plot_kernel_matrix)
 
 
-def train_quantum_kernel_individual(X_train, y_train, X_test, y_test, X_train_2d, X_test_2d,
-                                   n_qubits, reps, method_type, output_dir):
+
+def train_quantum_kernel_individual(X_train, y_train, X_test, y_test,
+                                   X_train_2d, X_test_2d,
+                                   n_qubits, reps, feature_map_type, output_dir):
     """
-    Train individual quantum kernel SVM
+    Train a single quantum kernel SVM model
     
     Args:
-        X_train, y_train: Training data (full dimensions)
-        X_test, y_test: Test data (full dimensions)
+        X_train, y_train: Training data
+        X_test, y_test: Test data
         X_train_2d, X_test_2d: 2D projections for visualization
-        n_qubits: Number of qubits
-        reps: Circuit repetitions
-        method_type: 'fourier' or 'qaoa'
-        output_dir: Base output directory
+        n_qubits: Number of qubits (features)
+        reps: Number of circuit repetitions
+        feature_map_type: 'fourier' or 'qaoa'
+        output_dir: Directory to save results
     
     Returns:
         Dictionary with results
     """
-    method_name = 'Fourier' if method_type == 'fourier' else 'QAOA'
-    method_dir = osp.join(output_dir, method_name)
     
     print(f"\n{'='*80}")
-    print(f"TRAINING QUANTUM KERNEL SVM - {method_name.upper()}")
+    print(f"TRAINING QUANTUM KERNEL SVM - {feature_map_type.upper()}")
     print(f"{'='*80}")
     print(f"Configuration:")
     print(f"  Number of qubits: {n_qubits}")
@@ -48,64 +50,55 @@ def train_quantum_kernel_individual(X_train, y_train, X_test, y_test, X_train_2d
     print(f"  Training samples: {len(X_train)}")
     print(f"  Test samples: {len(X_test)}")
     
-    # Select appropriate model
-    if method_type == 'fourier':
-        clf = svm_models["quantum"]["model"](n_qubits, reps=reps)
-    else:  # qaoa
-        clf = svm_models["qaoa"]["model"](n_qubits, reps=reps)
+    # Initialize quantum kernel SVM with correct parameters
+    qksvm = QuantumKernelSVM(
+        feature_map_type=feature_map_type,
+        n_features=n_qubits,
+        reps=reps,
+        entanglement='linear',
+        shots=1024
+    )
     
-    # Train
-    print(f"\nTraining {method_name} quantum kernel...")
-    clf.fit(X_train, y_train)
+    # Train the model
+    qksvm.fit(X_train, y_train, C=1.0)
     
-    # Evaluate
-    train_accuracy = clf.score(X_train, y_train)
-    test_accuracy = clf.score(X_test, y_test)
-    y_pred = clf.predict(X_test)
+    # Evaluate on test set
+    results = qksvm.evaluate(X_test, y_test)
     
-    # Confusion matrix
-    conf_matrix = confusion_matrix(y_test, y_pred)
-    
-    print(f"\nResults:")
-    print(f"  Training accuracy: {train_accuracy:.4f}")
-    print(f"  Test accuracy: {test_accuracy:.4f}")
+    print(f"\n{feature_map_type.upper()} Quantum Kernel Results:")
+    print(f"{'='*80}")
+    print(f"Test Accuracy: {results['accuracy']:.4f}")
     print(f"\nConfusion Matrix:")
-    print(conf_matrix)
-    print(f"\nClassification Report:")
-    print(classification_report(y_test, y_pred, 
-                                target_names=['Malignant', 'Benign']))
+    print(results['confusion_matrix'])
     
-    # Save results
-    print(f"\nSaving {method_name} results to {method_dir}...")
+    # Create output subfolder
+    method_dir = osp.join(output_dir, feature_map_type.capitalize())
     
-    # Train 2D classifier for visualization
-    if method_type == 'fourier':
-        clf_2d = svm_models["quantum"]["model"](2, reps=reps)
-    else:
-        clf_2d = svm_models["qaoa"]["model"](2, reps=reps)
+    # Visualizations
+    print(f"\nGenerating visualizations...")
     
-    clf_2d.fit(X_train_2d, y_train)
+    # 1. Decision boundary (using 2D projection)
+    plot_decision_boundary(
+        qksvm, X_train_2d, y_train, X_test_2d, y_test,
+        title=f"{feature_map_type.upper()} Quantum Kernel - Decision Boundary",
+        save_path=osp.join(method_dir, "decision_boundary.png")
+    )
     
-    # Decision boundary
-    plot_decision_boundary(X_test_2d, y_test, clf_2d, f'Quantum {method_name}',
-                          osp.join(method_dir, 'decision_boundary.png'))
+    # 2. Kernel matrix
+    plot_kernel_matrix(
+        qksvm, X_train, y_train,
+        title=f"{feature_map_type.upper()} Quantum Kernel Matrix",
+        save_path=osp.join(method_dir, "kernel_matrix.png")
+    )
     
-    # Kernel matrix
-    kernel_key = "quantum" if method_type == 'fourier' else "qaoa"
-    K_train = svm_models[kernel_key]["kernel_matrix"](X_train, n_qubits, reps=reps)
-    plot_kernel_matrix(K_train, y_train, f'Quantum {method_name}',
-                      osp.join(method_dir, 'kernel_matrix.png'))
+
     
-    # Save comparison plot
-    mdqsvm.compare_predict_and_real(X_test_2d, y_pred, y_test, X_test_2d)
-    plt.savefig(osp.join(method_dir, 'predictions_comparison.png'), dpi=300, bbox_inches='tight')
-    plt.close()
+    print(f"Visualizations saved in: {method_dir}/")
     
     return {
-        'model': clf,
-        'train_accuracy': train_accuracy,
-        'test_accuracy': test_accuracy,
-        'confusion_matrix': conf_matrix,
-        'predictions': y_pred,
-        'accuracy': test_accuracy
+        'model': qksvm,
+        'accuracy': results['accuracy'],
+        'confusion_matrix': results['confusion_matrix'],
+        'predictions': results['predictions'],
+        'classification_report': results['classification_report']
     }

@@ -38,7 +38,10 @@ from utils.dimensionality_reduction import (
 )
 from utils.classical_training import train_classical_svm
 from utils.quantum_training import train_quantum_kernel_individual
-from utils.visualization import visualize_overall_results
+from utils.visualization import (
+    visualize_overall_results,
+    plot_pca_variance_analysis  # New import
+)
 
 
 def print_final_summary(classical_results, fourier_results, qaoa_results, 
@@ -81,10 +84,11 @@ def main():
     1. Create output directory structure
     2. Load and preprocess data
     3. Apply automatic dimensionality reduction (90% variance)
-    4. Split into train/test sets
-    5. Train classical SVM (baseline)
-    6. Train quantum kernel SVMs (Fourier + QAOA)
-    7. Compare and visualize results in organized folders
+    4. Visualize PCA variance analysis
+    5. Split into train/test sets
+    6. Train classical SVM (baseline)
+    7. Train quantum kernel SVMs (Fourier + QAOA)
+    8. Compare and visualize results in organized folders
     
     Returns:
         classical_results: Dictionary with classical SVM results
@@ -107,7 +111,10 @@ def main():
         X, y, variance_threshold=0.90
     )
     
-    # Step 4: Split data
+    # Step 4: Visualize PCA variance analysis
+    plot_pca_variance_analysis(pca, n_qubits, output_dir)
+    
+    # Step 5: Split data
     X_train, y_train, X_test, y_test, X_holdout, y_holdout = mddt.data_split(
         X_reduced, y
     )
@@ -122,14 +129,14 @@ def main():
     X_train_2d, X_test_2d = create_2d_projection(X_train, X_test)
     print(f"  2D projection shape: {X_train_2d.shape}")
     
-    # Step 5: Train classical SVM
+    # Step 6: Train classical SVM
     classical_results = train_classical_svm(
         X_train, y_train, X_test, y_test,
         X_train_2d, X_test_2d,
         output_dir, kernel='linear'
     )
     
-    # Step 6: Train quantum kernels
+    # Step 7: Train quantum kernels
     reps = 2
     
     # Fourier quantum kernel
@@ -146,11 +153,11 @@ def main():
         n_qubits, reps, 'qaoa', output_dir
     )
     
-    # Step 7: Final summary and visualization
+    # Step 8: Final summary and visualization
     print_final_summary(classical_results, fourier_results, qaoa_results, 
                        n_qubits, pca)
     
-    # Step 8: Overall visualization
+    # Step 9: Overall visualization
     visualize_overall_results(
         classical_results, fourier_results, qaoa_results, output_dir
     )
@@ -160,13 +167,19 @@ def main():
     print("ANALYSIS COMPLETE")
     print(f"{'='*80}")
     print(f"\nResults saved in:")
-    print(f"  {osp.abspath(output_dir)}/Classical/")
-    print(f"  {osp.abspath(output_dir)}/Fourier/")
-    print(f"  {osp.abspath(output_dir)}/QAOA/")
-    print(f"\nEach folder contains:")
-    print(f"  - decision_boundary.png")
-    print(f"  - kernel_matrix.png")
-    print(f"  - predictions_comparison.png")
+    print(f"  {osp.abspath(output_dir)}/")
+    print(f"\nGenerated files:")
+    print(f"  - pca_variance_analysis.png (PCA variance explained)")
+    print(f"  - Classical/decision_boundary.png")
+    print(f"  - Classical/kernel_matrix.png")
+    print(f"  - Classical/predictions_comparison.png")
+    print(f"  - Fourier/decision_boundary.png")
+    print(f"  - Fourier/kernel_matrix.png")
+    print(f"  - Fourier/predictions_comparison.png")
+    print(f"  - QAOA/decision_boundary.png")
+    print(f"  - QAOA/kernel_matrix.png")
+    print(f"  - QAOA/predictions_comparison.png")
+    print(f"  - overall_comparison.png")
     print(f"\n{'='*80}\n")
     
     return classical_results, fourier_results, qaoa_results

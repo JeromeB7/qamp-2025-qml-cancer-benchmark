@@ -165,3 +165,89 @@ def visualize_overall_results(classical_results, fourier_results, qaoa_results,
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.close()
     print(f"Overall comparison saved to: {save_path}")
+
+
+import matplotlib.pyplot as plt
+import numpy as np
+import os.path as osp
+
+
+def plot_pca_variance_analysis(pca, n_components_selected, output_dir):
+    """
+    Plot PCA variance analysis showing explained variance vs number of components
+    
+    Args:
+        pca: Fitted PCA object
+        n_components_selected: Number of components selected by automatic method
+        output_dir: Directory to save the plot
+    """
+    n_components_total = len(pca.explained_variance_ratio_)
+    
+    # Calculate cumulative variance
+    cumulative_variance = np.cumsum(pca.explained_variance_ratio_)
+    
+    # Create figure with two subplots
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+    
+    # Plot 1: Individual explained variance per component
+    ax1.bar(range(1, n_components_total + 1), 
+            pca.explained_variance_ratio_ * 100,
+            alpha=0.7, color='steelblue', edgecolor='black')
+    ax1.axvline(x=n_components_selected, color='red', linestyle='--', 
+                linewidth=2, label=f'Selected: {n_components_selected} PCs')
+    ax1.set_xlabel('Principal Component', fontsize=12, fontweight='bold')
+    ax1.set_ylabel('Explained Variance (%)', fontsize=12, fontweight='bold')
+    ax1.set_title('Variance Explained by Each PC', fontsize=14, fontweight='bold')
+    ax1.legend(fontsize=10)
+    ax1.grid(True, alpha=0.3)
+    ax1.set_xticks(range(1, n_components_total + 1))
+    
+    # Plot 2: Cumulative explained variance
+    ax2.plot(range(1, n_components_total + 1), 
+             cumulative_variance * 100,
+             marker='o', markersize=6, linewidth=2, 
+             color='darkgreen', label='Cumulative Variance')
+    ax2.axhline(y=90, color='orange', linestyle='--', 
+                linewidth=2, label='90% Threshold')
+    ax2.axvline(x=n_components_selected, color='red', linestyle='--', 
+                linewidth=2, label=f'Selected: {n_components_selected} PCs')
+    ax2.fill_between(range(1, n_components_total + 1), 
+                      cumulative_variance * 100, 
+                      alpha=0.2, color='darkgreen')
+    ax2.set_xlabel('Number of Components', fontsize=12, fontweight='bold')
+    ax2.set_ylabel('Cumulative Explained Variance (%)', fontsize=12, fontweight='bold')
+    ax2.set_title('Cumulative Variance vs Components', fontsize=14, fontweight='bold')
+    ax2.legend(fontsize=10)
+    ax2.grid(True, alpha=0.3)
+    ax2.set_xticks(range(1, n_components_total + 1))
+    ax2.set_ylim([0, 105])
+    
+    # Add text annotation
+    variance_at_selection = cumulative_variance[n_components_selected - 1] * 100
+    ax2.annotate(f'{variance_at_selection:.2f}%',
+                xy=(n_components_selected, variance_at_selection),
+                xytext=(n_components_selected + 1, variance_at_selection - 10),
+                fontsize=11, fontweight='bold',
+                bbox=dict(boxstyle='round,pad=0.5', facecolor='yellow', alpha=0.7),
+                arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0', 
+                               color='red', lw=2))
+    
+    plt.tight_layout()
+    
+    # Save plot
+    save_path = osp.join(output_dir, "pca_variance_analysis.png")
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    print(f"\nPCA variance analysis saved: {save_path}")
+    plt.close()
+    
+    # Print detailed statistics
+    print(f"\n{'='*70}")
+    print("PCA VARIANCE ANALYSIS")
+    print(f"{'='*70}")
+    print(f"Total components available: {n_components_total}")
+    print(f"Components selected: {n_components_selected}")
+    print(f"Variance explained by selected components: {variance_at_selection:.2f}%")
+    print(f"\nVariance per component (first {min(10, n_components_total)}):")
+    for i in range(min(10, n_components_total)):
+        print(f"  PC{i+1}: {pca.explained_variance_ratio_[i]*100:.2f}% "f"(Cumulative: {cumulative_variance[i]*100:.2f}%)")
+    print(f"{'='*70}\n")
